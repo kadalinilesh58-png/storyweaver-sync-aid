@@ -54,7 +54,7 @@ const SAMPLE = `(0:00)Henan की कहानी असुरा का उद
 /* ------------------------------------------------------------------ */
 
 /** Script lines per analysed chunk — one image prompt is still written per line. */
-const BATCH = 20;
+const BATCH = 15;
 /**
  * Chunks analysed + storyboarded at the same time: one per Paralon key, so the
  * 7 keys run 7 consecutive chunks in parallel, wave after wave in script order.
