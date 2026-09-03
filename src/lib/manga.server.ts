@@ -220,10 +220,20 @@ const PROMPT_SYSTEM =
   "'blue moonlight through a barred window', 'dull ember glow in thick darkness').\n" +
 
   "RULES:\n" +
+  "- ONE LINE = ONE IMAGE (absolute): the output array has EXACTLY one prompt per numbered line, in the same order, even " +
+  "when consecutive lines are similar. Never merge two lines, never split one line into two, never skip a line, never " +
+  "return a placeholder. Each prompt must be visibly DIFFERENT from its neighbours (different action, framing or " +
+  "expression) because each one becomes its own image.\n" +
+  "- SCRIPT ACCURACY (absolute): the prompt must be a literal visual translation of THAT line's content — the exact " +
+  "subject, action, object, place, gesture, emotion, weather and time of day the line states. If the line states a " +
+  "detail that can be drawn, it must appear in the prompt. Add nothing the line and brief do not support: no invented " +
+  "props, events, people, animals or settings. If a line is inner thought or narration, draw the concrete thing it " +
+  "talks about (the person, place or object) in the beat's LOCATION, not a symbolic or unrelated image.\n" +
   "- CHUNK + TIMESTAMP (critical): each prompt is written for ONE numbered timestamp, but grounded in the CHUNK BRIEF. " +
   "Take the place, lighting, objects and cast from the brief's SETTING/OBJECTS/MOOD/CAST, then apply the per-line BEAT " +
   "and the exact words of that timestamp's line. A prompt must never contradict the brief, and must never copy another " +
   "timestamp's action.\n" +
+
   "- LOCATION LOCK (critical): every BEAT line starts with 'LOCATION: <place>'. The prompt for that numbered line MUST " +
   "OPEN with that exact place, worded the same way (e.g. 'In the damp stone dungeon cell, ...'), and the rest of the " +
   "prompt must stay inside it. You are FORBIDDEN from inventing, substituting or drifting to any other place — no city " +
