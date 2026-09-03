@@ -257,6 +257,12 @@ const PROMPT_SYSTEM =
   "14-year-old girl...'. Never refer to a main character as just 'a man', 'a woman', 'a person', 'he' or 'she' without the " +
   "name. NEVER change, swap or reverse any character's gender. For side characters not in the bible, pick one gender from " +
   "the script context and state it explicitly (e.g. 'a female boss in her 40s, dark business suit').\n" +
+  "- TWO OR MORE PEOPLE IN FRAME (critical): when a prompt shows more than one character, name each one separately with " +
+  "their gender and their own distinct traits, and say where each stands (e.g. 'Henan, a male 17-year-old boy with messy " +
+  "jet-black hair, on the left, facing Priya, a female 14-year-old girl with a long braid, on the right'). Never write a " +
+  "shared description like 'two figures' or 'the two of them', never let one character's hair, clothing or body type bleed " +
+  "onto the other, and never render a male character with feminine features or a female character with masculine features.\n",
+
   "- Exactly one scene, one moment, one instance of each character. Never ask for multiple panels, insets, collages or " +
   "side-by-side views.\n" +
   "- WHO LOCK (critical): every BEAT line contains 'WHO: <names>'. That list is the ONLY cast allowed in that prompt — " +
