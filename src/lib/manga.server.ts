@@ -709,14 +709,29 @@ export function enforceGender(prompt: string, bible?: string): string {
   // Stamp the gender next to each name so the renderer cannot misread it.
   for (const e of present) {
     const g = genderOf(e.traits)!;
-    const noun = g === "male" ? "male" : "female";
+    const noun = g === "male" ? "male man" : "female woman";
     out = out.replace(
-      new RegExp(`\\b${escapeRe(e.name)}\\b(?!\\s*\\((male|female)\\))`, "g"),
+      new RegExp(`\\b${escapeRe(e.name)}\\b(?!\\s*\\((male|female)\\b)`, "g"),
       `${e.name} (${noun})`,
     );
   }
+
+  // With two or more people in frame the renderer tends to blend or swap
+  // genders, so state the split explicitly right after the scene text.
+  if (present.length >= 2) {
+    const males = present.filter((e) => genderOf(e.traits) === "male").map((e) => e.name);
+    const females = present.filter((e) => genderOf(e.traits) === "female").map((e) => e.name);
+    if (males.length > 0 && females.length > 0) {
+      out +=
+        `. In this frame ${males.join(" and ")} ${males.length > 1 ? "are" : "is"} clearly MALE ` +
+        `(masculine face and body, male hairstyle and male clothing), and ` +
+        `${females.join(" and ")} ${females.length > 1 ? "are" : "is"} clearly FEMALE ` +
+        `(feminine face and body, female hairstyle and female clothing); do not swap, blend or feminise/masculinise them`;
+    }
+  }
   return out;
 }
+
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
