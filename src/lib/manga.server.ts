@@ -289,11 +289,19 @@ const CHUNK_SYSTEM =
   "OBJECTS: the specific things/phenomena the chunk mentions (gates, storm, letter, vehicle...) and how they look.\n" +
   "MOOD: lighting and atmosphere for this chunk (one line).\n" +
   "BEATS: one short line per numbered script line, in this exact format — 'n) LOCATION: <the place this shot happens " +
-  "in, 3-6 words> | <who/what is on screen and what visibly happens>'. The LOCATION must stay the SAME for every line " +
-  "of the chunk unless the script line itself clearly moves the scene somewhere else (a stated new place, a door " +
-  "opened, a journey). Dialogue, whispering, reactions and thoughts NEVER change the location. Lines that " +
-  "mention no person MUST include 'no people' after the '|'.\n" +
+  "in, 3-6 words> | WHO: <exact character names visible in this shot, comma separated, or 'no people'> | <what visibly " +
+  "happens>'.\n" +
+  "LOCATION rules: it must stay the SAME for every line of the chunk unless the script line itself clearly moves the " +
+  "scene somewhere else (a stated new place, a door opened, a journey). Dialogue, whispering, reactions and thoughts " +
+  "NEVER change the location.\n" +
+  "WHO rules (critical): resolve every Hindi pronoun (वो, वह, उसने, उसके, उसकी, इसने, उन्होंने, वे) to the ACTUAL " +
+  "character it refers to by reading the surrounding lines of this chunk and the story so far — it is very often a SIDE " +
+  "character, not the protagonist. Never write the protagonist's name unless that line truly shows him. Write the " +
+  "resolved names only (e.g. 'WHO: Marie' or 'WHO: Marie, the team captain'). If the line names no person by noun and " +
+  "no pronoun refers to a person — a place, sky, object, weather, phenomenon or narration about the world — write " +
+  "exactly 'WHO: no people'. For unnamed masses write 'WHO: crowd'. Do NOT add any human to a line that has none.\n" +
   "Be specific and faithful to the script. No commentary, no headings other than the labels above. Answer immediately.";
+
 
 
 /**
