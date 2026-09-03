@@ -69,7 +69,10 @@ export function parseScript(raw: string): Segment[] {
     const prev = marks[marks.length - 1];
     // Non-increasing timestamps would break contiguity — keep the monotonic run.
     if (prev && time <= prev.time) continue;
-    marks.push({ at: m.index, time, len: m[0].length });
+    // A bare timestamp match may include the separator that preceded it; keep
+    // that character with the previous segment's text.
+    const lead = m[1] === undefined && /^[\s—–-]/.test(m[0]) ? 1 : 0;
+    marks.push({ at: m.index + lead, time, len: m[0].length - lead });
   }
   if (marks.length === 0) return [];
 
