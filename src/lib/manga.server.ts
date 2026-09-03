@@ -220,10 +220,20 @@ const PROMPT_SYSTEM =
   "'blue moonlight through a barred window', 'dull ember glow in thick darkness').\n" +
 
   "RULES:\n" +
+  "- ONE LINE = ONE IMAGE (absolute): the output array has EXACTLY one prompt per numbered line, in the same order, even " +
+  "when consecutive lines are similar. Never merge two lines, never split one line into two, never skip a line, never " +
+  "return a placeholder. Each prompt must be visibly DIFFERENT from its neighbours (different action, framing or " +
+  "expression) because each one becomes its own image.\n" +
+  "- SCRIPT ACCURACY (absolute): the prompt must be a literal visual translation of THAT line's content — the exact " +
+  "subject, action, object, place, gesture, emotion, weather and time of day the line states. If the line states a " +
+  "detail that can be drawn, it must appear in the prompt. Add nothing the line and brief do not support: no invented " +
+  "props, events, people, animals or settings. If a line is inner thought or narration, draw the concrete thing it " +
+  "talks about (the person, place or object) in the beat's LOCATION, not a symbolic or unrelated image.\n" +
   "- CHUNK + TIMESTAMP (critical): each prompt is written for ONE numbered timestamp, but grounded in the CHUNK BRIEF. " +
   "Take the place, lighting, objects and cast from the brief's SETTING/OBJECTS/MOOD/CAST, then apply the per-line BEAT " +
   "and the exact words of that timestamp's line. A prompt must never contradict the brief, and must never copy another " +
   "timestamp's action.\n" +
+
   "- LOCATION LOCK (critical): every BEAT line starts with 'LOCATION: <place>'. The prompt for that numbered line MUST " +
   "OPEN with that exact place, worded the same way (e.g. 'In the damp stone dungeon cell, ...'), and the rest of the " +
   "prompt must stay inside it. You are FORBIDDEN from inventing, substituting or drifting to any other place — no city " +
@@ -417,18 +427,58 @@ export async function writePrompts(
 
   const locations = parseBeatLocations(brief);
   const casts = parseBeatCast(brief);
+  const actions = parseBeatActions(brief);
 
+  // One timestamp = one image: the returned array is always exactly as long as
+  // `segments`, in the same order, with a fallback prompt rather than a hole.
   return segments.map((s, i) => {
     const v = arr[i];
     const text = usable(v) ? (v as string).trim() : null;
+    const action = actions[i + 1];
     // Safety net: if the model drifted away from the beat's own LOCATION, pin
     // it back so the render can't relocate the scene.
-    const pinned = enforceLocation(text ?? fallbackPrompt(s), locations[i + 1]);
+    const pinned = enforceLocation(text ?? fallbackPrompt(s, action), locations[i + 1]);
     // Second safety net: keep the cast exactly as the chunk analysis resolved it
     // (including "nobody"), so pronoun lines can't fall back to the protagonist.
-    return sanitizePrompt(enforceCast(pinned, casts[i + 1]));
+    const cast = enforceCast(pinned, casts[i + 1]);
+    // Third safety net: if the prompt lost this line's own action, pin the beat's
+    // analysed action back so the image still shows what the script line says.
+    return sanitizePrompt(enforceBeatAction(cast, action));
   });
 }
+
+/**
+ * Reads the action half of 'n) LOCATION: ... | WHO: ... | <action>' out of a
+ * chunk brief's BEATS block: 1-based line number -> what visibly happens.
+ */
+export function parseBeatActions(brief: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!brief) return out;
+  const re = /^\s*(\d+)\s*[).:-]([^\n]+)$/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(brief)) !== null) {
+    const n = Number(m[1]);
+    const parts = (m[2] ?? "").split("|");
+    const action = (parts[parts.length - 1] ?? "").trim().replace(/[.;]+$/, "");
+    if (n > 0 && parts.length > 1 && action.length > 3) out[n] = action.slice(0, 220);
+  }
+  return out;
+}
+
+/** Appends the analysed beat action when the prompt no longer reflects it. */
+export function enforceBeatAction(prompt: string, action?: string): string {
+  if (!action) return prompt;
+  const p = prompt.toLowerCase();
+  const words = action
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 4);
+  if (words.length === 0) return prompt;
+  const hits = words.filter((w) => p.includes(w)).length;
+  if (hits / words.length >= 0.34) return prompt;
+  return `${prompt} This exact moment is shown: ${action}.`;
+}
+
 
 /**
  * Reads 'n) LOCATION: <place> | ...' out of a chunk brief's BEATS block and
@@ -516,12 +566,13 @@ export function enforceLocation(prompt: string, location?: string): string {
 }
 
 
-function fallbackPrompt(s: Segment): string {
+function fallbackPrompt(s: Segment, action?: string): string {
   return (
     "A single cinematic manga scene, moody low-key lighting with the subject clearly lit, depicting this exact story " +
-    `moment: ${s.text}`
+    `moment: ${action ? action : s.text}`
   );
 }
+
 
 
 /** Phrases that make Flux draw letterforms. Replaced with a neutral equivalent. */
