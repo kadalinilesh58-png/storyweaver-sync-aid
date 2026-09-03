@@ -314,13 +314,13 @@ export async function analyzeChunk(
       ],
       {
         temperature: 0.4,
-        maxTokens: 400 + segments.length * 90,
-        timeoutMs: 60_000,
+        maxTokens: 500 + segments.length * 100,
+        timeoutMs: 90_000,
         attempts: 2,
         slot,
       },
     );
-    return stripFences(out).slice(0, 3000);
+    return stripFences(out).slice(0, 6000);
   } catch (e) {
     console.error("analyzeChunk failed:", e instanceof Error ? e.message : e);
     return "";
