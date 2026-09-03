@@ -46,7 +46,7 @@ export const NO_PEOPLE_GUARD =
 
 /** Added only when the scene does have named/described people. */
 export const CAST_GUARD =
-  "only the people described above are present, each drawn once, keeping the exact gender stated";
+  "only the people described above are present, each drawn once, each with the exact gender stated for them, male characters unmistakably male and female characters unmistakably female, never swapped or blended";
 
 
 export async function zaiChat(
@@ -301,7 +301,9 @@ const CHUNK_SYSTEM =
   "Return plain text with exactly these labelled lines:\n" +
   "SETTING: the place(s) this chunk happens in, with 3-5 concrete visual details (architecture, objects, weather, time of day).\n" +
   "CAST: only the people who actually appear in this chunk, each with their fixed traits (from the bible if listed there, " +
-  "otherwise invent a short fixed look: age, gender, hair, clothing colour). Write 'none' if the chunk has no people.\n" +
+  "otherwise invent a short fixed look: age, gender, hair, clothing colour). ALWAYS state each person's gender " +
+  "explicitly as 'male' or 'female' with a matching noun, identical every time that person appears in the story. " +
+  "Write 'none' if the chunk has no people.\n" +
   "OBJECTS: the specific things/phenomena the chunk mentions (gates, storm, letter, vehicle...) and how they look.\n" +
   "MOOD: lighting and atmosphere for this chunk (one line).\n" +
   "BEATS: one short line per numbered script line, in this exact format — 'n) LOCATION: <the place this shot happens " +
@@ -316,6 +318,8 @@ const CHUNK_SYSTEM =
   "resolved names only (e.g. 'WHO: Marie' or 'WHO: Marie, the team captain'). If the line names no person by noun and " +
   "no pronoun refers to a person — a place, sky, object, weather, phenomenon or narration about the world — write " +
   "exactly 'WHO: no people'. For unnamed masses write 'WHO: crowd'. Do NOT add any human to a line that has none.\n" +
+  "GENDER rule (critical): after each name in WHO, add its gender in brackets, e.g. 'WHO: Henan (male), Priya (female)'. " +
+  "Use the bible/CAST gender and keep it identical for that character in every beat of every chunk.\n" +
   "Be specific and faithful to the script. No commentary, no headings other than the labels above. Answer immediately.";
 
 
