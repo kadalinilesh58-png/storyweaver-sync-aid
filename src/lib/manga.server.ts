@@ -224,6 +224,13 @@ const PROMPT_SYSTEM =
   "Take the place, lighting, objects and cast from the brief's SETTING/OBJECTS/MOOD/CAST, then apply the per-line BEAT " +
   "and the exact words of that timestamp's line. A prompt must never contradict the brief, and must never copy another " +
   "timestamp's action.\n" +
+  "- LOCATION LOCK (critical): every BEAT line starts with 'LOCATION: <place>'. The prompt for that numbered line MUST " +
+  "OPEN with that exact place, worded the same way (e.g. 'In the damp stone dungeon cell, ...'), and the rest of the " +
+  "prompt must stay inside it. You are FORBIDDEN from inventing, substituting or drifting to any other place — no city " +
+  "street, market, jungle, forest, school, office or rooftop unless that is the beat's own LOCATION. Dialogue, " +
+  "whispers ('फुसफुसाया'), shouts, reactions, memories and thoughts NEVER move the scene: keep the beat's LOCATION " +
+  "and change only the camera, expression and framing. Only a beat whose own LOCATION differs may show a new place.\n" +
+
   "- FAITHFUL DETAIL (critical): the prompt must capture the specific things that line actually says — the object, the " +
   "place, the gesture, the emotion, the weather, the time of day. Never write a generic 'a boy stands thinking' prompt. " +
   "Do not skip story details; if the line has several details, include the most visual ones.\n" +
