@@ -24,11 +24,14 @@ export function quantise(t: number): number {
 }
 
 function toSeconds(m: RegExpExecArray): number {
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  const c = m[3] !== undefined ? Number(m[3]) : null;
+  const bracketed = m[1] !== undefined;
+  const a = Number(bracketed ? m[1] : m[4]);
+  const b = Number(bracketed ? m[2] : m[5]);
+  const third = bracketed ? m[3] : m[6];
+  const c = third !== undefined ? Number(third) : null;
   return c === null ? a * 60 + b : a * 3600 + b * 60 + c;
 }
+
 
 /**
  * Absolute final timestamp in the raw script. This is the authoritative video
