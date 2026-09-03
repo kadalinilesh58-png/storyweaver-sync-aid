@@ -261,7 +261,7 @@ const PROMPT_SYSTEM =
   "their gender and their own distinct traits, and say where each stands (e.g. 'Henan, a male 17-year-old boy with messy " +
   "jet-black hair, on the left, facing Priya, a female 14-year-old girl with a long braid, on the right'). Never write a " +
   "shared description like 'two figures' or 'the two of them', never let one character's hair, clothing or body type bleed " +
-  "onto the other, and never render a male character with feminine features or a female character with masculine features.\n",
+  "onto the other, and never render a male character with feminine features or a female character with masculine features.\n" +
 
   "- Exactly one scene, one moment, one instance of each character. Never ask for multiple panels, insets, collages or " +
   "side-by-side views.\n" +
