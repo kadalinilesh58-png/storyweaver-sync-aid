@@ -320,7 +320,7 @@ export async function analyzeChunk(
         slot,
       },
     );
-    return stripFences(out).slice(0, 3000);
+    return stripFences(out).slice(0, 6000);
   } catch (e) {
     console.error("analyzeChunk failed:", e instanceof Error ? e.message : e);
     return "";
