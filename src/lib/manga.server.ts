@@ -566,12 +566,13 @@ export function enforceLocation(prompt: string, location?: string): string {
 }
 
 
-function fallbackPrompt(s: Segment): string {
+function fallbackPrompt(s: Segment, action?: string): string {
   return (
     "A single cinematic manga scene, moody low-key lighting with the subject clearly lit, depicting this exact story " +
-    `moment: ${s.text}`
+    `moment: ${action ? action : s.text}`
   );
 }
+
 
 
 /** Phrases that make Flux draw letterforms. Replaced with a neutral equivalent. */
