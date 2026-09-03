@@ -303,6 +303,17 @@ function Index() {
         return brief;
       };
 
+      // Last LOCATION seen in a chunk brief's BEATS block — carried forward so
+      // the next chunk starts in the same place instead of drifting.
+      const lastLocation = (brief: string): string => {
+        const re = /^\s*\d+\s*[).:-]\s*LOCATION\s*:\s*([^|\n]+)/gim;
+        let m: RegExpExecArray | null;
+        let found = "";
+        while ((m = re.exec(brief)) !== null) found = (m[1] ?? "").trim();
+        return found.replace(/[.,;]+$/, "").slice(0, 80);
+      };
+      let carryLocation = "";
+
       const promptStage = (async () => {
         for (let w = 0; w < batches.length; w += PROMPT_CONCURRENCY) {
           if (cancelRef.current) break;
@@ -313,14 +324,23 @@ function Index() {
               .filter((s) => s.index >= first - 4 && s.index < first)
               .map((s) => `[${fmt(s.start)}] ${s.text}`)
               .join("\n");
-            return [carry, lines].filter(Boolean).join("\n\n");
+            const loc = carryLocation
+              ? `CURRENT LOCATION (the scene is still here — keep it unless a script line clearly moves it): ${carryLocation}`
+              : "";
+            return [loc, carry, lines].filter(Boolean).join("\n\n");
           });
           const briefs = await Promise.all(
             wave.map((batch, i) => runChunk(batch, keyTick++, ctxForWave[i] as string)),
           );
-          carry = briefs.filter(Boolean).slice(-2).join("\n\n").slice(0, 2500);
+          const filled = briefs.filter(Boolean);
+          carry = filled.slice(-2).join("\n\n").slice(0, 2500);
+          for (const b2 of filled) {
+            const loc = lastLocation(b2);
+            if (loc) carryLocation = loc;
+          }
         }
       })().then(() => {
+
         promptingDone = true;
       });
 
