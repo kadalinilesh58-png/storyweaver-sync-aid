@@ -8,7 +8,9 @@ export const analyzeScript = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const segments = parseScript(data.script);
     if (segments.length === 0) {
-      throw new Error("No (m:ss) timestamps found in the script.");
+      throw new Error(
+        "No timestamps found. Each line needs a time like 0:00, (0:00) or [0:00].",
+      );
     }
     const bible = await buildCharacterBible(data.script);
     return { segments, bible };
