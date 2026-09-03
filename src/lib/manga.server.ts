@@ -398,12 +398,54 @@ export async function writePrompts(
     }
   }
 
+  const locations = parseBeatLocations(brief);
+
   return segments.map((s, i) => {
     const v = arr[i];
     const text = usable(v) ? (v as string).trim() : null;
-    return sanitizePrompt(text ?? fallbackPrompt(s));
+    // Safety net: if the model drifted away from the beat's own LOCATION, pin
+    // it back so the render can't relocate the scene.
+    const pinned = enforceLocation(text ?? fallbackPrompt(s), locations[i + 1]);
+    return sanitizePrompt(pinned);
   });
 }
+
+/**
+ * Reads 'n) LOCATION: <place> | ...' out of a chunk brief's BEATS block and
+ * returns a map of 1-based line number -> location.
+ */
+export function parseBeatLocations(brief: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!brief) return out;
+  const re = /^\s*(\d+)\s*[).:-]\s*LOCATION\s*:\s*([^|\n]+)/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(brief)) !== null) {
+    const n = Number(m[1]);
+    const place = (m[2] ?? "").trim().replace(/[.,;]+$/, "");
+    if (n > 0 && place.length > 2) out[n] = place.slice(0, 80);
+  }
+  return out;
+}
+
+/** True when the prompt already names the location (or most of its words). */
+function mentionsLocation(prompt: string, location: string): boolean {
+  const p = prompt.toLowerCase();
+  if (p.includes(location.toLowerCase())) return true;
+  const words = location
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 3);
+  if (words.length === 0) return false;
+  const hits = words.filter((w) => p.includes(w)).length;
+  return hits / words.length >= 0.5;
+}
+
+export function enforceLocation(prompt: string, location?: string): string {
+  if (!location) return prompt;
+  if (mentionsLocation(prompt, location)) return prompt;
+  return `In ${location}: ${prompt} The scene takes place in ${location}, and nowhere else.`;
+}
+
 
 function fallbackPrompt(s: Segment): string {
   return (
