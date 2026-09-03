@@ -46,7 +46,7 @@ export const NO_PEOPLE_GUARD =
 
 /** Added only when the scene does have named/described people. */
 export const CAST_GUARD =
-  "only the people described above are present, each drawn once, keeping the exact gender stated";
+  "only the people described above are present, each drawn once, each with the exact gender stated for them, male characters unmistakably male and female characters unmistakably female, never swapped or blended";
 
 
 export async function zaiChat(
@@ -257,6 +257,12 @@ const PROMPT_SYSTEM =
   "14-year-old girl...'. Never refer to a main character as just 'a man', 'a woman', 'a person', 'he' or 'she' without the " +
   "name. NEVER change, swap or reverse any character's gender. For side characters not in the bible, pick one gender from " +
   "the script context and state it explicitly (e.g. 'a female boss in her 40s, dark business suit').\n" +
+  "- TWO OR MORE PEOPLE IN FRAME (critical): when a prompt shows more than one character, name each one separately with " +
+  "their gender and their own distinct traits, and say where each stands (e.g. 'Henan, a male 17-year-old boy with messy " +
+  "jet-black hair, on the left, facing Priya, a female 14-year-old girl with a long braid, on the right'). Never write a " +
+  "shared description like 'two figures' or 'the two of them', never let one character's hair, clothing or body type bleed " +
+  "onto the other, and never render a male character with feminine features or a female character with masculine features.\n" +
+
   "- Exactly one scene, one moment, one instance of each character. Never ask for multiple panels, insets, collages or " +
   "side-by-side views.\n" +
   "- WHO LOCK (critical): every BEAT line contains 'WHO: <names>'. That list is the ONLY cast allowed in that prompt — " +
@@ -295,7 +301,9 @@ const CHUNK_SYSTEM =
   "Return plain text with exactly these labelled lines:\n" +
   "SETTING: the place(s) this chunk happens in, with 3-5 concrete visual details (architecture, objects, weather, time of day).\n" +
   "CAST: only the people who actually appear in this chunk, each with their fixed traits (from the bible if listed there, " +
-  "otherwise invent a short fixed look: age, gender, hair, clothing colour). Write 'none' if the chunk has no people.\n" +
+  "otherwise invent a short fixed look: age, gender, hair, clothing colour). ALWAYS state each person's gender " +
+  "explicitly as 'male' or 'female' with a matching noun, identical every time that person appears in the story. " +
+  "Write 'none' if the chunk has no people.\n" +
   "OBJECTS: the specific things/phenomena the chunk mentions (gates, storm, letter, vehicle...) and how they look.\n" +
   "MOOD: lighting and atmosphere for this chunk (one line).\n" +
   "BEATS: one short line per numbered script line, in this exact format — 'n) LOCATION: <the place this shot happens " +
@@ -310,6 +318,8 @@ const CHUNK_SYSTEM =
   "resolved names only (e.g. 'WHO: Marie' or 'WHO: Marie, the team captain'). If the line names no person by noun and " +
   "no pronoun refers to a person — a place, sky, object, weather, phenomenon or narration about the world — write " +
   "exactly 'WHO: no people'. For unnamed masses write 'WHO: crowd'. Do NOT add any human to a line that has none.\n" +
+  "GENDER rule (critical): after each name in WHO, add its gender in brackets, e.g. 'WHO: Henan (male), Priya (female)'. " +
+  "Use the bible/CAST gender and keep it identical for that character in every beat of every chunk.\n" +
   "Be specific and faithful to the script. No commentary, no headings other than the labels above. Answer immediately.";
 
 
@@ -709,14 +719,29 @@ export function enforceGender(prompt: string, bible?: string): string {
   // Stamp the gender next to each name so the renderer cannot misread it.
   for (const e of present) {
     const g = genderOf(e.traits)!;
-    const noun = g === "male" ? "male" : "female";
+    const noun = g === "male" ? "male man" : "female woman";
     out = out.replace(
-      new RegExp(`\\b${escapeRe(e.name)}\\b(?!\\s*\\((male|female)\\))`, "g"),
+      new RegExp(`\\b${escapeRe(e.name)}\\b(?!\\s*\\((male|female)\\b)`, "g"),
       `${e.name} (${noun})`,
     );
   }
+
+  // With two or more people in frame the renderer tends to blend or swap
+  // genders, so state the split explicitly right after the scene text.
+  if (present.length >= 2) {
+    const males = present.filter((e) => genderOf(e.traits) === "male").map((e) => e.name);
+    const females = present.filter((e) => genderOf(e.traits) === "female").map((e) => e.name);
+    if (males.length > 0 && females.length > 0) {
+      out +=
+        `. In this frame ${males.join(" and ")} ${males.length > 1 ? "are" : "is"} clearly MALE ` +
+        `(masculine face and body, male hairstyle and male clothing), and ` +
+        `${females.join(" and ")} ${females.length > 1 ? "are" : "is"} clearly FEMALE ` +
+        `(feminine face and body, female hairstyle and female clothing); do not swap, blend or feminise/masculinise them`;
+    }
+  }
   return out;
 }
+
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -736,17 +761,23 @@ export function characterLock(prompt: string, bible?: string): string {
   // the whole cast into a prompt that doesn't mention them.
   if (matched.length === 0) return "";
   return (
-    "Fixed character appearance and GENDER (must match exactly, never swap or change gender or clothing): " +
+    "Fixed character identity (gender and appearance must match exactly for every character, " +
+    "never swapped, blended or changed between shots): " +
     matched
       .map((e) => {
         const g = genderOf(e.traits);
         const traits = e.traits.replace(/\.$/, "");
-        return g ? `${e.name} is ${g.toUpperCase()} — ${traits}` : `${e.name} is ${traits}`;
+        return g
+          ? `${e.name} is a ${g.toUpperCase()} ${g === "male" ? "man/boy" : "woman/girl"} — ${traits}`
+          : `${e.name} is ${traits}`;
       })
       .join("; ") +
-    "."
+    (matched.length >= 2
+      ? ". Keep each of these characters visually distinct from the others and give each one exactly the gender stated."
+      : ".")
   );
 }
+
 
 /** True when the prompt describes at least one human in frame. */
 export function hasPeople(prompt: string, bible?: string): boolean {
