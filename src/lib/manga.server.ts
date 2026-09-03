@@ -249,18 +249,27 @@ const PROMPT_SYSTEM =
   "the script context and state it explicitly (e.g. 'a female boss in her 40s, dark business suit').\n" +
   "- Exactly one scene, one moment, one instance of each character. Never ask for multiple panels, insets, collages or " +
   "side-by-side views.\n" +
-  "- CAST FIDELITY: include ONLY the people that specific script line mentions. If a line mentions only Henan, the prompt " +
-  "must contain Henan ALONE. Never assume two characters are together unless the line says so.\n" +
+  "- WHO LOCK (critical): every BEAT line contains 'WHO: <names>'. That list is the ONLY cast allowed in that prompt — " +
+  "no one else may appear, not even the main character. If WHO says 'no people', the prompt MUST be a pure environment " +
+  "shot with nobody, no silhouette and no distant figure. If WHO names a side character, draw THAT side character (with " +
+  "their look from the brief's CAST), never the protagonist.\n" +
+  "- PRONOUNS (critical): Hindi pronouns (वो, वह, उसने, उसके, उसकी, इसने, उन्होंने) refer to whoever the BEAT's WHO " +
+  "names — resolve them through the WHO list, never default to the main character. If the previous line was about a " +
+  "side character, 'उसने' is that side character.\n" +
+  "- CAST FIDELITY: include ONLY the people in WHO, each drawn once. Never assume two characters are together unless " +
+  "WHO lists both.\n" +
   "- NO-CHARACTER LINES (critical): if the line describes only a place, an object, the sky, weather or a phenomenon and " +
-  "names NO person, the prompt MUST be a pure environment shot with NOBODY in it. Start it with 'Empty environment shot, " +
-  "no people:' and describe only the place/object/phenomenon, its scale, atmosphere and lighting. Never add a silhouette, " +
-  "a lone figure, an onlooker or the main character just to fill the frame.\n" +
+  "names NO person by name or pronoun, the prompt MUST be a pure environment shot with NOBODY in it. Start it with " +
+  "'Empty environment shot, no people:' and describe only the place/object/phenomenon, its scale, atmosphere and " +
+  "lighting. Never add a silhouette, a lone figure, an onlooker or the main character just to fill the frame.\n" +
   "- CROWD LINES: if the line says many people, everyone, a crowd, people running or panicking, then the prompt MUST show " +
   "that crowd (many varied ordinary people, their expressions and motion) — do not reduce it to one person.\n" +
-  "- SIDE CHARACTERS: if the line mentions someone NOT in the bible (a boss, teacher, shopkeeper), invent a short distinct " +
-  "visual for them inline (age, gender, one clothing detail). NEVER substitute a main character's name or traits.\n" +
+  "- SIDE CHARACTERS: if WHO names someone NOT in the bible (a boss, teacher, shopkeeper), use the short distinct " +
+  "visual the brief's CAST gives them (age, gender, one clothing detail). NEVER substitute a main character's name or " +
+  "traits for a side character.\n" +
   "- STRICT FIDELITY: describe ONLY what the script line actually says. Never invent people, animals, vehicles or crowds " +
   "the line does not mention. If the line names no location, keep the background a simple dark neutral space.\n" +
+
 
   "- NO TEXT: never describe text, letters, words, numbers, signs, signboards, posters, banners, newspapers, book pages, " +
   "screens with writing, labels or logos. If the script mentions something written, show the OBJECT and the character's " +
@@ -280,11 +289,19 @@ const CHUNK_SYSTEM =
   "OBJECTS: the specific things/phenomena the chunk mentions (gates, storm, letter, vehicle...) and how they look.\n" +
   "MOOD: lighting and atmosphere for this chunk (one line).\n" +
   "BEATS: one short line per numbered script line, in this exact format — 'n) LOCATION: <the place this shot happens " +
-  "in, 3-6 words> | <who/what is on screen and what visibly happens>'. The LOCATION must stay the SAME for every line " +
-  "of the chunk unless the script line itself clearly moves the scene somewhere else (a stated new place, a door " +
-  "opened, a journey). Dialogue, whispering, reactions and thoughts NEVER change the location. Lines that " +
-  "mention no person MUST include 'no people' after the '|'.\n" +
+  "in, 3-6 words> | WHO: <exact character names visible in this shot, comma separated, or 'no people'> | <what visibly " +
+  "happens>'.\n" +
+  "LOCATION rules: it must stay the SAME for every line of the chunk unless the script line itself clearly moves the " +
+  "scene somewhere else (a stated new place, a door opened, a journey). Dialogue, whispering, reactions and thoughts " +
+  "NEVER change the location.\n" +
+  "WHO rules (critical): resolve every Hindi pronoun (वो, वह, उसने, उसके, उसकी, इसने, उन्होंने, वे) to the ACTUAL " +
+  "character it refers to by reading the surrounding lines of this chunk and the story so far — it is very often a SIDE " +
+  "character, not the protagonist. Never write the protagonist's name unless that line truly shows him. Write the " +
+  "resolved names only (e.g. 'WHO: Marie' or 'WHO: Marie, the team captain'). If the line names no person by noun and " +
+  "no pronoun refers to a person — a place, sky, object, weather, phenomenon or narration about the world — write " +
+  "exactly 'WHO: no people'. For unnamed masses write 'WHO: crowd'. Do NOT add any human to a line that has none.\n" +
   "Be specific and faithful to the script. No commentary, no headings other than the labels above. Answer immediately.";
+
 
 
 /**
@@ -399,6 +416,7 @@ export async function writePrompts(
   }
 
   const locations = parseBeatLocations(brief);
+  const casts = parseBeatCast(brief);
 
   return segments.map((s, i) => {
     const v = arr[i];
@@ -406,7 +424,9 @@ export async function writePrompts(
     // Safety net: if the model drifted away from the beat's own LOCATION, pin
     // it back so the render can't relocate the scene.
     const pinned = enforceLocation(text ?? fallbackPrompt(s), locations[i + 1]);
-    return sanitizePrompt(pinned);
+    // Second safety net: keep the cast exactly as the chunk analysis resolved it
+    // (including "nobody"), so pronoun lines can't fall back to the protagonist.
+    return sanitizePrompt(enforceCast(pinned, casts[i + 1]));
   });
 }
 
@@ -426,6 +446,55 @@ export function parseBeatLocations(brief: string): Record<number, string> {
   }
   return out;
 }
+
+/**
+ * Reads 'WHO: <names|no people>' out of a chunk brief's BEATS block and returns
+ * a map of 1-based line number -> resolved cast for that shot.
+ */
+export function parseBeatCast(brief: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!brief) return out;
+  const re = /^\s*(\d+)\s*[).:-][^\n]*?WHO\s*:\s*([^|\n]+)/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(brief)) !== null) {
+    const n = Number(m[1]);
+    const who = (m[2] ?? "").trim().replace(/[.,;]+$/, "");
+    if (n > 0 && who.length > 1) out[n] = who.slice(0, 120);
+  }
+  return out;
+}
+
+const NO_PEOPLE_RE = /^(no\s*people|none|nobody|no\s*one|no\s*character[s]?)$/i;
+
+/**
+ * Pins the prompt's cast to what the chunk analysis resolved.
+ *  - 'no people' beats get an explicit empty-environment instruction.
+ *  - named beats get the resolved names appended when the prompt omitted them,
+ *    so a pronoun line never silently becomes the main character.
+ */
+export function enforceCast(prompt: string, who?: string): string {
+  if (!who) return prompt;
+  const cleaned = who.trim();
+  if (NO_PEOPLE_RE.test(cleaned)) {
+    return `${prompt} ${NO_PEOPLE_GUARD}.`;
+  }
+  const names = cleaned
+    .split(/[,/&]| and /i)
+    .map((n) => n.trim())
+    .filter((n) => n.length > 1);
+  if (names.length === 0) return prompt;
+  const p = prompt.toLowerCase();
+  const missing = names.filter((n) => {
+    const key = n.toLowerCase().replace(/^(the|a|an)\s+/, "");
+    const head = key.split(/\s+/)[0] ?? key;
+    return !p.includes(key) && !p.includes(head);
+  });
+  if (missing.length === 0) return prompt;
+  return `${prompt} The only people in frame are ${names.join(" and ")}; ${missing.join(
+    " and ",
+  )} must be present and no other character appears.`;
+}
+
 
 /** True when the prompt already names the location (or most of its words). */
 function mentionsLocation(prompt: string, location: string): boolean {
