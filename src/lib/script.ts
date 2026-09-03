@@ -7,7 +7,11 @@ export type Segment = {
 
 // The first field is intentionally unbounded: long scripts commonly continue
 // MM:SS past 99 minutes (for example 120:19), as well as using HH:MM:SS.
-const TS = /\((\d+):(\d{2})(?::(\d{2}))?\)/g;
+// Brackets are optional and may be any common style — (0:05), [0:05], 【0:05】,
+// or a bare 0:05 at the start of a line — so real-world scripts all parse.
+const TS =
+  /[(\[{（【]\s*(\d+):(\d{2})(?::(\d{2}))?\s*[)\]}）】]|(?:^|[\s—–-])(\d+):(\d{2})(?::(\d{2}))?(?=\s|$)/gm;
+
 
 /** Timeline frame rate. Every duration is quantised to this grid so the encoder
  * cannot drift: round(dur * FPS) is then always exact. */
@@ -20,11 +24,14 @@ export function quantise(t: number): number {
 }
 
 function toSeconds(m: RegExpExecArray): number {
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  const c = m[3] !== undefined ? Number(m[3]) : null;
+  const bracketed = m[1] !== undefined;
+  const a = Number(bracketed ? m[1] : m[4]);
+  const b = Number(bracketed ? m[2] : m[5]);
+  const third = bracketed ? m[3] : m[6];
+  const c = third !== undefined ? Number(third) : null;
   return c === null ? a * 60 + b : a * 3600 + b * 60 + c;
 }
+
 
 /**
  * Absolute final timestamp in the raw script. This is the authoritative video
@@ -62,7 +69,10 @@ export function parseScript(raw: string): Segment[] {
     const prev = marks[marks.length - 1];
     // Non-increasing timestamps would break contiguity — keep the monotonic run.
     if (prev && time <= prev.time) continue;
-    marks.push({ at: m.index, time, len: m[0].length });
+    // A bare timestamp match may include the separator that preceded it; keep
+    // that character with the previous segment's text.
+    const lead = m[1] === undefined && /^[\s—–-]/.test(m[0]) ? 1 : 0;
+    marks.push({ at: m.index + lead, time, len: m[0].length - lead });
   }
   if (marks.length === 0) return [];
 
