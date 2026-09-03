@@ -416,6 +416,7 @@ export async function writePrompts(
   }
 
   const locations = parseBeatLocations(brief);
+  const casts = parseBeatCast(brief);
 
   return segments.map((s, i) => {
     const v = arr[i];
@@ -423,7 +424,9 @@ export async function writePrompts(
     // Safety net: if the model drifted away from the beat's own LOCATION, pin
     // it back so the render can't relocate the scene.
     const pinned = enforceLocation(text ?? fallbackPrompt(s), locations[i + 1]);
-    return sanitizePrompt(pinned);
+    // Second safety net: keep the cast exactly as the chunk analysis resolved it
+    // (including "nobody"), so pronoun lines can't fall back to the protagonist.
+    return sanitizePrompt(enforceCast(pinned, casts[i + 1]));
   });
 }
 
@@ -443,6 +446,55 @@ export function parseBeatLocations(brief: string): Record<number, string> {
   }
   return out;
 }
+
+/**
+ * Reads 'WHO: <names|no people>' out of a chunk brief's BEATS block and returns
+ * a map of 1-based line number -> resolved cast for that shot.
+ */
+export function parseBeatCast(brief: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!brief) return out;
+  const re = /^\s*(\d+)\s*[).:-][^\n]*?WHO\s*:\s*([^|\n]+)/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(brief)) !== null) {
+    const n = Number(m[1]);
+    const who = (m[2] ?? "").trim().replace(/[.,;]+$/, "");
+    if (n > 0 && who.length > 1) out[n] = who.slice(0, 120);
+  }
+  return out;
+}
+
+const NO_PEOPLE_RE = /^(no\s*people|none|nobody|no\s*one|no\s*character[s]?)$/i;
+
+/**
+ * Pins the prompt's cast to what the chunk analysis resolved.
+ *  - 'no people' beats get an explicit empty-environment instruction.
+ *  - named beats get the resolved names appended when the prompt omitted them,
+ *    so a pronoun line never silently becomes the main character.
+ */
+export function enforceCast(prompt: string, who?: string): string {
+  if (!who) return prompt;
+  const cleaned = who.trim();
+  if (NO_PEOPLE_RE.test(cleaned)) {
+    return `${prompt} ${NO_PEOPLE_GUARD}.`;
+  }
+  const names = cleaned
+    .split(/[,/&]| and /i)
+    .map((n) => n.trim())
+    .filter((n) => n.length > 1);
+  if (names.length === 0) return prompt;
+  const p = prompt.toLowerCase();
+  const missing = names.filter((n) => {
+    const key = n.toLowerCase().replace(/^(the|a|an)\s+/, "");
+    const head = key.split(/\s+/)[0] ?? key;
+    return !p.includes(key) && !p.includes(head);
+  });
+  if (missing.length === 0) return prompt;
+  return `${prompt} The only people in frame are ${names.join(" and ")}; ${missing.join(
+    " and ",
+  )} must be present and no other character appears.`;
+}
+
 
 /** True when the prompt already names the location (or most of its words). */
 function mentionsLocation(prompt: string, location: string): boolean {
