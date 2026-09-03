@@ -7,7 +7,11 @@ export type Segment = {
 
 // The first field is intentionally unbounded: long scripts commonly continue
 // MM:SS past 99 minutes (for example 120:19), as well as using HH:MM:SS.
-const TS = /\((\d+):(\d{2})(?::(\d{2}))?\)/g;
+// Brackets are optional and may be any common style — (0:05), [0:05], 【0:05】,
+// or a bare 0:05 at the start of a line — so real-world scripts all parse.
+const TS =
+  /[(\[{（【]\s*(\d+):(\d{2})(?::(\d{2}))?\s*[)\]}）】]|(?:^|[\s—–-])(\d+):(\d{2})(?::(\d{2}))?(?=\s|$)/gm;
+
 
 /** Timeline frame rate. Every duration is quantised to this grid so the encoder
  * cannot drift: round(dur * FPS) is then always exact. */
