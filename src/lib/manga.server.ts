@@ -427,18 +427,58 @@ export async function writePrompts(
 
   const locations = parseBeatLocations(brief);
   const casts = parseBeatCast(brief);
+  const actions = parseBeatActions(brief);
 
+  // One timestamp = one image: the returned array is always exactly as long as
+  // `segments`, in the same order, with a fallback prompt rather than a hole.
   return segments.map((s, i) => {
     const v = arr[i];
     const text = usable(v) ? (v as string).trim() : null;
+    const action = actions[i + 1];
     // Safety net: if the model drifted away from the beat's own LOCATION, pin
     // it back so the render can't relocate the scene.
-    const pinned = enforceLocation(text ?? fallbackPrompt(s), locations[i + 1]);
+    const pinned = enforceLocation(text ?? fallbackPrompt(s, action), locations[i + 1]);
     // Second safety net: keep the cast exactly as the chunk analysis resolved it
     // (including "nobody"), so pronoun lines can't fall back to the protagonist.
-    return sanitizePrompt(enforceCast(pinned, casts[i + 1]));
+    const cast = enforceCast(pinned, casts[i + 1]);
+    // Third safety net: if the prompt lost this line's own action, pin the beat's
+    // analysed action back so the image still shows what the script line says.
+    return sanitizePrompt(enforceBeatAction(cast, action));
   });
 }
+
+/**
+ * Reads the action half of 'n) LOCATION: ... | WHO: ... | <action>' out of a
+ * chunk brief's BEATS block: 1-based line number -> what visibly happens.
+ */
+export function parseBeatActions(brief: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!brief) return out;
+  const re = /^\s*(\d+)\s*[).:-]([^\n]+)$/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(brief)) !== null) {
+    const n = Number(m[1]);
+    const parts = (m[2] ?? "").split("|");
+    const action = (parts[parts.length - 1] ?? "").trim().replace(/[.;]+$/, "");
+    if (n > 0 && parts.length > 1 && action.length > 3) out[n] = action.slice(0, 220);
+  }
+  return out;
+}
+
+/** Appends the analysed beat action when the prompt no longer reflects it. */
+export function enforceBeatAction(prompt: string, action?: string): string {
+  if (!action) return prompt;
+  const p = prompt.toLowerCase();
+  const words = action
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 4);
+  if (words.length === 0) return prompt;
+  const hits = words.filter((w) => p.includes(w)).length;
+  if (hits / words.length >= 0.34) return prompt;
+  return `${prompt} This exact moment is shown: ${action}.`;
+}
+
 
 /**
  * Reads 'n) LOCATION: <place> | ...' out of a chunk brief's BEATS block and
