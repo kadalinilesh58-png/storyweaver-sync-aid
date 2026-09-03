@@ -751,17 +751,23 @@ export function characterLock(prompt: string, bible?: string): string {
   // the whole cast into a prompt that doesn't mention them.
   if (matched.length === 0) return "";
   return (
-    "Fixed character appearance and GENDER (must match exactly, never swap or change gender or clothing): " +
+    "Fixed character identity (gender and appearance must match exactly for every character, " +
+    "never swapped, blended or changed between shots): " +
     matched
       .map((e) => {
         const g = genderOf(e.traits);
         const traits = e.traits.replace(/\.$/, "");
-        return g ? `${e.name} is ${g.toUpperCase()} — ${traits}` : `${e.name} is ${traits}`;
+        return g
+          ? `${e.name} is a ${g.toUpperCase()} ${g === "male" ? "man/boy" : "woman/girl"} — ${traits}`
+          : `${e.name} is ${traits}`;
       })
       .join("; ") +
-    "."
+    (matched.length >= 2
+      ? ". Keep each of these characters visually distinct from the others and give each one exactly the gender stated."
+      : ".")
   );
 }
+
 
 /** True when the prompt describes at least one human in frame. */
 export function hasPeople(prompt: string, bible?: string): boolean {
